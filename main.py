@@ -87,13 +87,26 @@ def download_with_aria2(links, download_dir, connections, split):
         return None
 
     # Global/Task options
-    options = {"referer": "https://fuckingfast.co/",
-               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-               # "file-allocation": None,
-               "dir": download_dir,
-               "max-connection-per-server": str(connections),
-               "max-concurrent-downloads": str(connections),
-               "split": str(split)}
+    options = {
+        "referer": "https://fuckingfast.co/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "dir": download_dir,
+
+        # --- Performance & Connections ---
+        "max-connection-per-server": str(connections),  # (Keep under 16 to avoid IP bans)
+        "split": str(split),                            # (Should generally match max-connections)
+        "max-concurrent-downloads": "3",                # Don't download too many *separate* files at once
+        "min-split-size": "20M",                        # Prevents aria2 from splitting tiny files
+        "file-allocation": "none",                      # 'none' or 'falloc' prevents freezing on startup
+
+        # --- Reliability & Error Recovery (Anti-Failing) ---
+        "continue": "true",                             # Always try to resume broken downloads
+        "max-tries": "10",                              # Number of retries for dropped connections
+        "retry-wait": "5",                              # Seconds to wait between retries
+        "timeout": "60",                                # Close and retry connections that hang for 60s
+        # "lowest-speed-limit": "50K",                    # Drop/re-establish threads that stall out completely
+        "remote-time": "true"                           # Preserve the original file's timestamp
+    }
 
     downloads = []
     try:
