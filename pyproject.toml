@@ -1,0 +1,12 @@
+[project]
+name = "ffdl"
+version = "0.1.0"
+description = "A tool to extract and download files from FitGirl Repacks via fuckingfast.co using aria2."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aria2p>=0.12.1",
+    "lxml>=6.0.2",
+    "requests>=2.31.0",
+    "tqdm>=4.66.1",
+]
