@@ -36,27 +36,27 @@ if !errorlevel! neq 0 (
 echo uv found.
 echo.
 
-REM --- Check for aria2c ---
-echo Checking for aria2c...
-aria2c --version >nul 2>&1
+REM --- Check for Surge ---
+echo Checking for Surge CLI...
+surge --version >nul 2>&1
 if !errorlevel! neq 0 (
-    echo aria2c is not installed or not in your PATH.
+    echo Surge CLI is not installed or not in your PATH.
     if "!has_winget!"=="1" (
-        CHOICE /C YN /M "Do you want to install aria2c using winget? (Y/N)"
+        CHOICE /C YN /M "Surge is a high-performance downloader. Do you want to install it using winget? (Y/N)"
         if !errorlevel! equ 1 (
-            echo Installing aria2c...
-            winget install -e --id aria2.aria2
+            echo Installing Surge...
+            winget install surge-downloader.surge
             echo.
-            echo aria2c installation has been requested. Please close this window and run the script again once the installation is complete.
+            echo Surge installation has been requested. Please close this window and run the script again once the installation is complete.
             pause
             goto :eof
         )
     )
-    echo Please download aria2c manually from https://github.com/aria2/aria2/releases and add it to your PATH.
+    echo Please install Surge manually: winget install surge-downloader.surge
     pause
     goto :eof
 )
-echo aria2c found.
+echo Surge found.
 echo.
 
 REM --- Install Python requirements using uv ---
@@ -71,17 +71,11 @@ echo Requirements installed successfully.
 echo.
 
 REM --- Run the application ---
-echo Starting aria2c daemon...
-start "aria2c_daemon" /min aria2c --enable-rpc --rpc-listen-all
-
-timeout /t 3 /nobreak >nul
-
 echo Starting the main application with uv...
 uv run python main.py %*
 
 REM --- Cleanup ---
 echo.
-echo Application finished. Closing aria2c daemon...
-taskkill /IM aria2c.exe /F >nul 2>&1
+echo Application finished.
 
 endlocal

@@ -12,10 +12,19 @@ else
     echo "uv is already installed."
 fi
 
-# --- Check for aria2c ---
-if ! command -v aria2c &> /dev/null; then
-    echo "Error: aria2c is not installed. Please install it using your system's package manager (e.g., 'sudo apt-get install aria2' or 'brew install aria2')."
-    exit 1
+# --- Check for Surge ---
+if ! command -v surge &> /dev/null; then
+    echo "Surge CLI not found. Attempting to install it..."
+    if command -v brew &> /dev/null; then
+        brew install surge-downloader/tap/surge
+        echo "Surge has been installed."
+    else
+        echo "Error: Homebrew is not installed. Please install Homebrew or install Surge manually."
+        echo "To install Surge manually: brew install surge-downloader/tap/surge"
+        exit 1
+    fi
+else
+    echo "Surge is already installed."
 fi
 
 # --- Install dependencies using uv ---
@@ -23,17 +32,6 @@ echo "Syncing dependencies using uv..."
 uv sync
 
 # --- Run the application ---
-echo "Starting aria2c daemon..."
-aria2c --enable-rpc --rpc-listen-all=true --rpc-allow-origin-all &
-# Store the process ID of the background job
-aria2_pid=$!
-
-# Ensure aria2c is terminated when the script exits
-trap "echo 'Stopping aria2c daemon...'; kill $aria2_pid" EXIT
-
-# Wait a moment for the server to start
-sleep 2
-
 echo "Starting the main application with uv..."
 # Execute the main script using uv, passing all command-line arguments
 uv run python main.py "$@"

@@ -1,6 +1,6 @@
 # FitFuckingFast (ffdl)
 
-**FitFuckingFast** is a high-performance, automated download link extractor and downloader designed specifically for **FitGirl Repacks**. It scrapes a given FitGirl game page, extracts all download links hosted on **fuckingfast.co**, and sends them directly to an `aria2` download manager for maximum speed.
+**FitFuckingFast** is a high-performance, automated download link extractor and downloader designed specifically for **FitGirl Repacks**. It scrapes a given FitGirl game page, extracts all download links hosted on **fuckingfast.co**, and sends them directly to the **Surge** download manager for maximum speed.
 
 This tool solves the tedious problem of manually clicking through dozens of intermediate pages to get the actual download links. It automates the entire process, from scraping the initial page to managing the downloads in parallel.
 
@@ -9,8 +9,8 @@ This tool solves the tedious problem of manually clicking through dozens of inte
 *   **Automated Scraping**: simply provide a FitGirl Repack URL, and the tool does the rest.
 *   **Smart Link Extraction**: Navigates through intermediate redirection pages to find the final, direct `fuckingfast.co` download URLs.
 *   **Parallel Processing**: Uses multi-threading to fetch and parse multiple pages simultaneously, significantly reducing the time to start downloading.
-*   **Aria2 Integration**: Seamlessly integrates with `aria2c` (a lightweight multi-protocol & multi-source command-line download utility) to handle the actual file downloading.
-*   **Live Progress Monitoring**: Features a beautiful, real-time terminal dashboard showing download speeds, progress bars, and ETAs for all active files.
+*   **Surge Integration**: Seamlessly integrates with the **Surge CLI** (a high-performance, batch-capable downloader) to handle the actual file downloading.
+*   **Live Progress Monitoring**: Displays real-time download progress directly from the Surge CLI.
 *   **Cross-Platform**: Runs on Windows, macOS, and Linux (including Docker support).
 *   **Modern Stack**: Built with Python and `uv` for blazing fast dependency management.
 
@@ -18,17 +18,16 @@ This tool solves the tedious problem of manually clicking through dozens of inte
 
 Before running the tool, ensure you have the following installed:
 
-1.  **Aria2**: The core download engine.
-    *   **Windows**: `winget install Aria2.Aria2` (or download from [GitHub](https://github.com/aria2/aria2/releases))
-    *   **macOS**: `brew install aria2`
-    *   **Linux**: `sudo apt install aria2` (or equivalent for your distro)
+1.  **Surge CLI**: The core download engine.
+    *   **Windows**: `winget install surge-downloader.surge`
+    *   **macOS / Linux**: `brew install surge-downloader/tap/surge`
 2.  **uv** (Optional but recommended): A fast Python package manager. The provided scripts will attempt to install it automatically if missing.
 
 ## 🛠️ Installation & Usage
 
 ### Option 1: Docker (Recommended)
 
-The Docker image bundles everything you need (Python, dependencies, aria2).
+The Docker image bundles everything you need (Python, dependencies, Surge).
 
 1.  **Build the image**:
     ```bash
@@ -54,7 +53,7 @@ The Docker image bundles everything you need (Python, dependencies, aria2).
     ```bash
     ./run.sh "https://fitgirl-repacks.site/cyberpunk-2077/"
     ```
-    *The script will automatically set up a virtual environment, install dependencies, start the aria2 daemon, and begin the download.*
+    *The script will automatically set up a virtual environment, install dependencies, check for Surge (installing via Homebrew if missing), and begin the download.*
 
 ### Option 3: Windows
 
@@ -63,7 +62,7 @@ The Docker image bundles everything you need (Python, dependencies, aria2).
     ```cmd
     run.bat "https://fitgirl-repacks.site/cyberpunk-2077/"
     ```
-    *The script will check for `winget`, `uv`, and `aria2c`, prompting to install them if missing.*
+    *The script will check for `winget`, `uv`, and `surge`, prompting to install them if missing.*
 
 ## ⚙️ Configuration & Arguments
 
@@ -75,7 +74,7 @@ You can customize the behavior using command-line arguments:
 | `--dir` | `/downloads/new_dex` | The directory where files will be saved. |
 | `-x`, `--connections` | `16` | Maximum number of connections per server (speeds up downloads). |
 | `-s`, `--split` | `1` | Number of pieces to split each file into. |
-| `--no-progress` | `False` | Disable the live TUI progress monitor. |
+| `--no-progress` | `False` | Disable the live progress display. |
 
 **Example:**
 ```bash
@@ -84,7 +83,7 @@ You can customize the behavior using command-line arguments:
 
 ## 🔧 Troubleshooting
 
-*   **"aria2c not found"**: Ensure `aria2c` is in your system's PATH. On Windows, you might need to restart your terminal after installation.
+*   **"surge command not found"**: Ensure `surge` is in your system's PATH. On Windows, you might need to restart your terminal after installation.
 *   **Download Stuck/Slow**: `fuckingfast.co` sometimes limits speeds or connections. Try reducing `--connections` if you encounter issues.
 *   **Script crashes immediately**: Check your internet connection and ensure the FitGirl URL is valid and accessible.
 

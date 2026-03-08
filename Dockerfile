@@ -4,12 +4,17 @@ FROM python:3.11-slim
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies (aria2)
-RUN apt-get update && apt-get install -y aria2 curl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Install uv, the fast Python package manager
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Surge CLI
+# Download the latest Linux binary directly
+RUN curl -L -o /usr/local/bin/surge https://github.com/surge-downloader/surge/releases/latest/download/surge_linux_amd64 && \
+    chmod +x /usr/local/bin/surge
 
 # Copy project files
 COPY pyproject.toml uv.lock ./

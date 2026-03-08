@@ -1,12 +1,12 @@
 import argparse
 import re
-import time
+import subprocess
+import sys
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import aria2p
 import requests
 from lxml import etree
-from tqdm import tqdm
 
 import config
 
@@ -67,133 +67,74 @@ def extract_final_download_links(intermediate_links):
     return final_links
 
 
-# options = {"referer": "https://fuckingfast.co/",
-#                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-#                # "file-allocation": None,
-#                "dir": download_dir,
-#                "max-connection-per-server": str(connections),
-#                "max-concurrent-downloads": str(connections),
-#                "split": str(split)}
+def download_with_surge(links, download_dir, connections, split):
+    """Downloads files using the Surge CLI tool in batch mode."""
+    print(f"\nStarting download with Surge to {download_dir}...")
 
+    # Ensure download directory exists
+    if not os.path.exists(download_dir):
+        try:
+            os.makedirs(download_dir)
+        except OSError as e:
+            print(f"Error creating download directory: {e}")
+            return
 
-def download_with_aria2(links, download_dir, connections, split):
-    """Adds multiple links as separate downloads to run in parallel."""
+    # Create urls.txt file
+    urls_file_path = "urls.txt"
     try:
-        aria2 = aria2p.API(
-            aria2p.Client(host=config.ARIA2_HOST, port=config.ARIA2_PORT, secret=config.ARIA2_SECRET)
+        with open(urls_file_path, "w") as f:
+            for link in links:
+                f.write(f"{link}\n")
+        print(f"Successfully wrote {len(links)} URLs to {urls_file_path}")
+    except IOError as e:
+        print(f"Error writing to {urls_file_path}: {e}")
+        return
+
+    # Construct the Surge command
+    # surge --batch urls.txt --output <directory> --exit-when-done
+    command = ["surge", "server","--batch", urls_file_path, "--output", download_dir, "--exit-when-done"]
+
+    print(f"Executing: {' '.join(command)}")
+
+    try:
+        # Run the command and stream output
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
-    except Exception:
-        print("Error: Could not connect to the aria2 RPC server.")
-        return None
 
-    # Global/Task options
-    options = {
-        "referer": "https://fuckingfast.co/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "dir": download_dir,
+        # Stream stdout
+        for line in process.stdout:
+            print(line, end="")
+        
+        # Capture stderr
+        stderr_output = process.stderr.read()
+        if stderr_output:
+            print(f"\nSTDERR:\n{stderr_output}")
 
-        # --- Performance & Connections ---
-        "max-connection-per-server": str(connections),  # (Keep under 16 to avoid IP bans)
-        "split": str(split),                            # (Should generally match max-connections)
-        "max-concurrent-downloads": "3",                # Don't download too many *separate* files at once
-        "min-split-size": "20M",                        # Prevents aria2 from splitting tiny files
-        "file-allocation": "none",                      # 'none' or 'falloc' prevents freezing on startup
+        process.wait()
+        
+        if process.returncode == 0:
+            print("\nSurge finished successfully.")
+        else:
+            print(f"\nSurge exited with error code {process.returncode}.")
 
-        # --- Reliability & Error Recovery (Anti-Failing) ---
-        "continue": "true",                             # Always try to resume broken downloads
-        "max-tries": "10",                              # Number of retries for dropped connections
-        "retry-wait": "5",                              # Seconds to wait between retries
-        "timeout": "60",                                # Close and retry connections that hang for 60s
-        # "lowest-speed-limit": "50K",                    # Drop/re-establish threads that stall out completely
-        "remote-time": "true"                           # Preserve the original file's timestamp
-    }
-
-    downloads = []
-    try:
-        for link in links:
-            # Adding as a list containing one URI ensures it's treated as a unique file
-            download = aria2.add_uris([link], options=options)
-            downloads.append(download)
-
-        print(f"\nSuccessfully added {len(downloads)} separate files to the queue.")
-
-        # Optional: Force aria2 to allow more parallel slots if the server config is restrictive
-        # aria2.set_global_options({"max-concurrent-downloads": "10"})
-
-        return aria2
+    except FileNotFoundError:
+        print("\nError: 'surge' command not found. Please ensure Surge CLI is installed and in your PATH.")
+        print("Install via Homebrew (macOS/Linux): brew install surge-downloader/tap/surge")
+        print("Install via Winget (Windows): winget install surge-downloader.surge")
     except Exception as e:
-        print(f"An error occurred while adding downloads to aria2: {e}")
-        return None
-
-
-def monitor_downloads(aria2):
-    """Displays real-time, persistent progress bars for all downloads."""
-    print("\n--- Initializing Download Monitors ---\n")
-
-    # Dictionary to keep track of tqdm instances for each download GID
-    bars = {}
-
-    try:
-        while True:
-            downloads = aria2.get_downloads()
-
-            # If there's absolutely nothing in the queue, we're done
-            if not downloads:
-                break
-
-            active_or_waiting = [d for d in downloads if not d.is_complete and not d.is_removed]
-
-            # Exit loop if everything is finished
-            if not active_or_waiting:
-                break
-
-            for dl in active_or_waiting:
-                # Initialize a new bar if we haven't seen this GID yet
-                if dl.gid not in bars:
-                    bars[dl.gid] = tqdm(
-                        total=dl.total_length,
-                        unit='B',
-                        unit_scale=True,
-                        unit_divisor=1024,
-                        desc=dl.name[:40],  # Truncate long names
-                        leave=True,
-                        dynamic_ncols=True
-                    )
-
-                # Update the bar to the current downloaded amount
-                # We use 'n' to set the absolute position to avoid calculation errors
-                bars[dl.gid].n = dl.completed_length
-
-                # Update the speed and status in the postfix
-                bars[dl.gid].set_postfix(
-                    status=dl.status,
-                    speed=dl.download_speed_string(),
-                    refresh=False
-                )
-                bars[dl.gid].refresh()
-
-            # Optional: Clean up bars for completed downloads to keep the UI tidy
-            for gid in list(bars.keys()):
-                dl = aria2.get_download(gid)
-                if dl.is_complete:
-                    bars[gid].n = dl.total_length  # Ensure it shows 100%
-                    bars[gid].close()
-                    del bars[gid]
-
-            time.sleep(1)
-
-        print("\n[✔] All downloads completed.")
-
-    except KeyboardInterrupt:
-        print("\nMonitoring stopped by user.")
+        print(f"\nAn unexpected error occurred while running Surge: {e}")
     finally:
-        # Ensure all bars are closed on exit
-        for bar in bars.values():
-            bar.close()
+        pass
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch download links and send to aria2.")
+    parser = argparse.ArgumentParser(description="Fetch download links and download using Surge CLI.")
     parser.add_argument("url", help="The URL to scrape for download links.")
     parser.add_argument("--dir", default=config.DEFAULT_DOWNLOAD_DIR,
                         help=f"Download directory (default: {config.DEFAULT_DOWNLOAD_DIR}).")
@@ -214,12 +155,7 @@ def main():
         print("No final download links could be extracted. Exiting.")
         return
 
-    aria2_api = download_with_aria2(final_links, args.dir, args.connections, args.split)
-    if aria2_api and not args.no_progress:
-        try:
-            monitor_downloads(aria2_api)
-        except KeyboardInterrupt:
-            print("\nExiting progress monitor.")
+    download_with_surge(final_links, args.dir, args.connections, args.split)
 
 
 if __name__ == "__main__":
