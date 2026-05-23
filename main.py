@@ -37,7 +37,7 @@ def fetch_single_final_link(link):
     try:
         response = session.get(link, timeout=10)
         response.raise_for_status()
-        link_regex = re.compile(r'window\.open\("(https://fuckingfast\.co/dl/[^"]+)"\)')
+        link_regex = re.compile(r'window\.open\("([^"]+)"\)')
         match = link_regex.search(response.text)
         if match:
             return match.group(1)
